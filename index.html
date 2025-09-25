@@ -129,7 +129,7 @@
 
       const upload = document.createElement('input');
       upload.type = 'file';
-      upload.accept = 'audio/*';
+      upload.accept = '.wav, audio/wav, audio/x-wav, audio/*';
       upload.addEventListener('change', function () {
         const file = this.files[0];
         if (file) {
@@ -183,3 +183,4 @@
   </script>
 </body>
 </html>
+
