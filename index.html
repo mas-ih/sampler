@@ -117,7 +117,7 @@
   </div>
 
   <script>
-    const MAX_SOUNDS = 8;
+    const MAX_SOUNDS = 4;
     const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     const soundBuffers = new Array(MAX_SOUNDS).fill(null);
     const sourceNodes = new Array(MAX_SOUNDS).fill(null);
@@ -156,7 +156,12 @@
       column.appendChild(container);
     }
 
-    function playSound(index) {
+    async function playSound(index) {
+      //iOS fix: activeer AudioContext bij gebruikersinteractie
+      if (audioCtx.state === 'suspended') {
+        await audioCtx.resume();
+      }
+
       stopAll();
       if (soundBuffers[index]) {
         const source = audioCtx.createBufferSource();
@@ -183,4 +188,3 @@
   </script>
 </body>
 </html>
-
