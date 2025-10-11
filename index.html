@@ -12,20 +12,17 @@
       color: #212529;
       margin: 0;
     }
-
     h2 {
       text-align: center;
       margin-bottom: 30px;
       color: #343a40;
     }
-
     #controls-wrapper {
       display: flex;
       flex-wrap: wrap;
       justify-content: center;
       gap: 20px;
     }
-
     .column {
       display: flex;
       flex-direction: column;
@@ -33,7 +30,6 @@
       width: 100%;
       max-width: 300px;
     }
-
     .sound-block {
       background-color: #ffffff;
       border: 1px solid #dee2e6;
@@ -44,12 +40,10 @@
       flex-direction: column;
       align-items: center;
     }
-
     input[type="file"] {
       margin-bottom: 10px;
       width: 100%;
     }
-
     button {
       padding: 10px 16px;
       border: none;
@@ -60,44 +54,35 @@
       width: 100%;
       color: white;
     }
-
     button:hover {
       opacity: 0.9;
     }
-
     button.playing {
       background-color: #198754 !important;
     }
-
     .play-button {
       background-color: #0d6efd;
     }
-
     .stop-button {
       background-color: #dc3545;
     }
-
     #stop-button-container {
       margin-top: 40px;
       display: flex;
       justify-content: center;
     }
-
     #stop-button {
       width: 100%;
       max-width: 300px;
     }
-
     @media (max-width: 700px) {
       #controls-wrapper {
         flex-direction: column;
         align-items: center;
       }
-
       .column {
         max-width: 100%;
       }
-
       #stop-button {
         max-width: 100%;
       }
@@ -106,12 +91,10 @@
 </head>
 <body>
   <h2>Sampler Player</h2>
-
   <div id="controls-wrapper">
     <div id="column-0" class="column"></div>
     <div id="column-1" class="column"></div>
   </div>
-
   <div id="stop-button-container">
     <button id="stop-button" class="stop-button">Stop Alle Geluiden</button>
   </div>
@@ -122,6 +105,54 @@
     const soundBuffers = new Array(MAX_SOUNDS).fill(null);
     const sourceNodes = new Array(MAX_SOUNDS).fill(null);
     const buttons = [];
+    let db;
+
+    async function openDB() {
+      return new Promise((resolve, reject) => {
+        const request = indexedDB.open("samplerDB", 1);
+
+        request.onupgradeneeded = (event) => {
+          db = event.target.result;
+          db.createObjectStore("sounds");
+        };
+
+        request.onsuccess = (event) => {
+          db = event.target.result;
+          resolve();
+        };
+
+        request.onerror = (event) => {
+          reject("Fout bij openen van de database");
+        };
+      });
+    }
+
+    function saveSound(index, file) {
+      const transaction = db.transaction(["sounds"], "readwrite");
+      const store = transaction.objectStore("sounds");
+      store.put(file, `sound${index}`);
+    }
+
+    function loadSavedSounds() {
+      const transaction = db.transaction(["sounds"], "readonly");
+      const store = transaction.objectStore("sounds");
+
+      for (let i = 0; i < MAX_SOUNDS; i++) {
+        const request = store.get(`sound${i}`);
+        request.onsuccess = (event) => {
+          const file = event.target.result;
+          if (file) {
+            const reader = new FileReader();
+            reader.onload = function (e) {
+              audioCtx.decodeAudioData(e.target.result, (buffer) => {
+                soundBuffers[i] = buffer;
+              });
+            };
+            reader.readAsArrayBuffer(file);
+          }
+        };
+      }
+    }
 
     for (let i = 0; i < MAX_SOUNDS; i++) {
       const container = document.createElement('div');
@@ -129,10 +160,11 @@
 
       const upload = document.createElement('input');
       upload.type = 'file';
-      upload.accept = '.wav, audio/wav, audio/x-wav, audio/*';
+      upload.accept = 'audio/wav, audio/x-wav, audio/*';
       upload.addEventListener('change', function () {
         const file = this.files[0];
         if (file) {
+          saveSound(i, file);
           const reader = new FileReader();
           reader.onload = function (e) {
             audioCtx.decodeAudioData(e.target.result, (buffer) => {
@@ -157,11 +189,9 @@
     }
 
     async function playSound(index) {
-      //iOS fix: activeer AudioContext bij gebruikersinteractie
       if (audioCtx.state === 'suspended') {
         await audioCtx.resume();
       }
-
       stopAll();
       if (soundBuffers[index]) {
         const source = audioCtx.createBufferSource();
@@ -185,7 +215,9 @@
     }
 
     document.getElementById('stop-button').addEventListener('click', stopAll);
+
+    // Start IndexedDB en laad geluiden bij het opstarten
+    openDB().then(loadSavedSounds);
   </script>
 </body>
 </html>
-
